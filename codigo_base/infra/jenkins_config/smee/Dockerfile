@@ -8,4 +8,8 @@ RUN npm install -g smee-client
 
 # TODO
 
+ENV SMEE_TARGET=http://jenkins:8080/github-webhook/
+
+USER node
+
 ENTRYPOINT ["sh", "-c", "smee -u \"$SMEE_URL\" -t \"$SMEE_TARGET\""]

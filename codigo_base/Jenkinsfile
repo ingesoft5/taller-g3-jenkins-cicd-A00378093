@@ -12,16 +12,35 @@
 pipeline {
     agent any
 
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    // Disparo por webhook de GitHub (reenviado por Smee a /github-webhook/)
+    triggers {
+        githubPush()
+    }
+
     environment {
-        // TODO
-        IMAGE_TAG = "TODO-DEFINA-EN-UN-STAGE-SCRIPT"
+        // Carpeta del repositorio donde vive el código
+        APP_DIR = 'codigo_base'
 
-        // TODO
-        NEXUS_REGISTRY   = "TODO-HOST:TODO-PUERTO-DOCKER-REGISTRY"
-        NEXUS_MAVEN_REPO = "TODO-URL-REPOSITORIO-MAVEN-RELEASES"
+        // IMAGE_TAG NO se declara aquí: las variables de este bloque son
+        // inmutables. Se calcula en el stage 'Checkout & Test' (env.IMAGE_TAG).
 
-        // TODO
-        NEXUS_CREDENTIALS_ID = "TODO-ID-CREDENCIAL-NEXUS"
+        // Docker: quien resuelve este host es el daemon del HOST (socket montado),
+        // por eso es localhost:<puerto publicado>. Docker acepta HTTP en localhost.
+        NEXUS_REGISTRY   = 'localhost:9080'
+        // Maven: quien se conecta es el contenedor Jenkins -> nombre DNS en cicd_network.
+        NEXUS_MAVEN_REPO = 'http://nexus:8081/repository/maven-releases/'
+
+        NEXUS_CREDENTIALS_ID = 'nexus-credentials'
+
+        BACKEND_IMAGE  = 'studytrack-api'
+        FRONTEND_IMAGE = 'studytrack-frontend'
     }
 
     stages {
@@ -31,35 +50,114 @@ pipeline {
                 checkout scm
 
                 script {
-                    // TODO:
+                    def shortSha = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+                    env.IMAGE_TAG = "1.0.${env.BUILD_NUMBER}-${shortSha}"
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} · ${env.IMAGE_TAG}"
+                    echo "Versión inmutable de este build: ${env.IMAGE_TAG}"
                 }
 
-                dir('backend') {
-                    // TODO
+                dir("${APP_DIR}/backend") {
+                    sh 'mvn -B test'
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: "${APP_DIR}/backend/target/surefire-reports/*.xml"
                 }
             }
         }
 
         stage('Package & Tag Inmutable') {
             steps {
-                dir('backend') {
-                    // TODO
+                dir("${APP_DIR}/backend") {
+                    sh 'mvn -B package -DskipTests -Drevision=${IMAGE_TAG}'
+                    sh '''
+                        docker build \
+                          --build-arg APP_VERSION=${IMAGE_TAG} \
+                          -t ${NEXUS_REGISTRY}/${BACKEND_IMAGE}:${IMAGE_TAG} .
+                    '''
                 }
-                dir('frontend') {
-                    // TODO:
+                dir("${APP_DIR}/frontend") {
+                    sh '''
+                        docker build \
+                          --build-arg VITE_API_URL=http://localhost:8080 \
+                          -t ${NEXUS_REGISTRY}/${FRONTEND_IMAGE}:${IMAGE_TAG} .
+                    '''
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: "${APP_DIR}/backend/target/studytrack-api.jar", fingerprint: true
                 }
             }
         }
 
         stage('Publish to Nexus') {
             steps {
-                // TODO
+                withCredentials([usernamePassword(credentialsId: env.NEXUS_CREDENTIALS_ID,
+                                                  usernameVariable: 'NEXUS_USER',
+                                                  passwordVariable: 'NEXUS_PASS')]) {
+
+                    // 1) JAR -> maven-releases. El settings.xml temporal NO contiene
+                    //    la clave: Maven la lee de las variables de entorno en ejecución.
+                    dir("${APP_DIR}/backend") {
+                        writeFile file: 'ci-settings.xml', text: '''<settings>
+  <servers>
+    <server>
+      <id>nexus-releases</id>
+      <username>${env.NEXUS_USER}</username>
+      <password>${env.NEXUS_PASS}</password>
+    </server>
+  </servers>
+</settings>
+'''
+                        sh '''
+                            mvn -B deploy -DskipTests \
+                              -Drevision=${IMAGE_TAG} \
+                              -Dnexus.releases.url=${NEXUS_MAVEN_REPO} \
+                              -s ci-settings.xml
+                        '''
+                    }
+
+                    // 2) Imágenes -> docker-hosted
+                    sh '''
+                        echo "$NEXUS_PASS" | docker login ${NEXUS_REGISTRY} -u "$NEXUS_USER" --password-stdin
+                        docker push ${NEXUS_REGISTRY}/${BACKEND_IMAGE}:${IMAGE_TAG}
+                        docker push ${NEXUS_REGISTRY}/${FRONTEND_IMAGE}:${IMAGE_TAG}
+                    '''
+                }
+            }
+            post {
+                always {
+                    sh 'docker logout ${NEXUS_REGISTRY} || true'
+                    sh "rm -f ${APP_DIR}/backend/ci-settings.xml"
+                }
             }
         }
 
         stage('Deploy & Smoke Test') {
             steps {
-                // TODO
+                dir("${APP_DIR}") {
+                    // NEXUS_REGISTRY e IMAGE_TAG llegan al compose como variables de entorno
+                    sh 'docker compose -p studytrack -f deploy/docker-compose.yml up -d --remove-orphans'
+                }
+                sh '''
+                    for i in $(seq 1 20); do
+                      if curl -fsS http://studytrack-api:8080/api/tasks > /dev/null; then
+                        echo "Smoke test OK en el intento $i -> /api/tasks responde 2xx"
+                        exit 0
+                      fi
+                      echo "Intento $i/20: el backend aún no responde, reintentando en 5s..."
+                      sleep 5
+                    done
+                    echo "Smoke test FALLIDO tras 20 intentos"
+                    exit 1
+                '''
+            }
+            post {
+                failure {
+                    sh 'docker logs --tail 100 studytrack-api || true'
+                }
             }
         }
     }

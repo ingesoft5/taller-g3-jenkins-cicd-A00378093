@@ -9,17 +9,32 @@ version: "3.9"
 services:
   jenkins:
     build: .
-    container_name:
+    image: studytrack-jenkins:1.0.0
+    container_name: jenkins
+    restart: unless-stopped
     networks:
+      - cicd_network
     ports:
+      - "${JENKINS_UI_PORT:-9082}:8080"
+      - "${JENKINS_AGENT_PORT:-50000}:50000"
     volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-0}"
 
   smee:
     build: ./smee
+    image: studytrack-smee:1.0.0
     container_name: smee-client
+    restart: unless-stopped
     environment:
+      SMEE_URL: ${SMEE_CHANNEL_URL}
+      SMEE_TARGET: http://jenkins:8080/github-webhook/
     networks:
+      - cicd_network
     depends_on:
+      - jenkins
 
 networks:
   cicd_network:

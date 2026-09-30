@@ -12,28 +12,37 @@ version: "3.9"
 
 services:
   backend:
-    # TODO
-    container_name: 
+    # Imagen inmutable desde Nexus: sin tag explícito el despliegue falla (nunca :latest)
+    image: ${NEXUS_REGISTRY:-localhost:9080}/studytrack-api:${IMAGE_TAG:?Debe definir IMAGE_TAG}
+    container_name: studytrack-api
+    restart: unless-stopped
     ports:
+      - "8080:8080"
     networks:
+      - product-network
+      - cicd_network   # para que Jenkins pueda hacer el smoke test por DNS (studytrack-api:8080)
     healthcheck:
-      test:
-      interval: 
-      timeout: 
-      retries: 
-      start_period: 
+      # La imagen alpine trae wget (busybox); el proyecto no incluye actuator
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/tasks || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
   frontend:
-    # TODO:
-    image: 
-    container_name:
+    image: ${NEXUS_REGISTRY:-localhost:9080}/studytrack-frontend:${IMAGE_TAG:?Debe definir IMAGE_TAG}
+    container_name: studytrack-frontend
+    restart: unless-stopped
     ports:
+      - "3000:3000"
     networks:
+      - product-network
     depends_on:
       backend:
-        condition:
+        condition: service_healthy
 
 networks:
-  # TODO
   product-network:
-    driver: 
+    driver: bridge
+  cicd_network:
+    external: true

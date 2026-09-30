@@ -14,14 +14,20 @@
     <groupId>com.icesi</groupId>
     <artifactId>studytrack-api</artifactId>
     <!--
-        TODO
+        Versionado inmutable (CI-friendly): la versión real la inyecta el
+        pipeline con -Drevision=1.0.<BUILD_NUMBER>-<git-short-sha>.
+        El valor por defecto (SNAPSHOT) solo se usa en desarrollo local.
     -->
-    <version>0.0.1-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>studytrack-api</name>
     <description>Backend REST de StudyTrack (Taller Evaluativo 2 - Ingeniería de Software V)</description>
 
     <properties>
         <java.version>17</java.version>
+        <revision>0.0.1-SNAPSHOT</revision>
+        <!-- URL por defecto: Nexus visto desde el HOST. Jenkins la sobreescribe
+             con -Dnexus.releases.url=http://nexus:8081/... (red cicd_network). -->
+        <nexus.releases.url>http://localhost:9081/repository/maven-releases/</nexus.releases.url>
     </properties>
 
     <dependencies>
@@ -56,12 +62,47 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- Resuelve ${revision} en el pom que se publica en Nexus
+                 (sin esto el pom publicado quedaría con "${revision}" literal). -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals><goal>flatten</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>flatten-clean</id>
+                        <phase>clean</phase>
+                        <goals><goal>clean</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
     <!--
         ============================================================
-        TODO (Fase 2 - Publicación Inmutable en Nexus):
+        Fase 2 - Publicación Inmutable en Nexus.
+        El <id> debe coincidir con el <server><id> del settings.xml donde
+        van las credenciales (nunca en este archivo).
+        maven-releases tiene política "Disable redeploy": una versión
+        publicada no puede sobrescribirse -> inmutabilidad.
+        ============================================================
     -->
+    <distributionManagement>
+        <repository>
+            <id>nexus-releases</id>
+            <name>Nexus maven-releases (local)</name>
+            <url>${nexus.releases.url}</url>
+        </repository>
+    </distributionManagement>
 
 </project>

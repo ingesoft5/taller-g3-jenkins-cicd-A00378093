@@ -10,6 +10,37 @@ services:
   nexus:
     image: sonatype/nexus3:3.68.1
     container_name: nexus
+    restart: unless-stopped
+    networks:
+      - cicd_network
+    ports:
+      # UI + API REST + repos Maven (8081 dentro del contenedor)
+      - "${NEXUS_UI_PORT:-9081}:8081"
+      # Conector HTTP del repositorio docker-hosted (se configura en la UI con puerto 8082)
+      - "${NEXUS_DOCKER_REGISTRY_PORT:-9080}:8082"
+    volumes:
+      - nexus_data:/nexus-data
+    environment:
+      - INSTALL4J_ADD_VM_PARAMS=-Xms1024m -Xmx1024m -XX:MaxDirectMemorySize=1024m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/service/rest/v1/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+networks:
+  cicd_network:
+    external: true
+
+volumes:
+  nexus_data:
+version: "3.9"
+
+services:
+  nexus:
+    image: sonatype/nexus3:3.68.1
+    container_name: nexus
     networks:
       - cicd_network
     ports:
