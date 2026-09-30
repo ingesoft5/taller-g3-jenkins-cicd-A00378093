@@ -1,6 +1,6 @@
-/home/ingesoft/taller-g3-jenkins-cicd-A00378093/codigo_base/backend/src/main/java/com/icesi/studytrack/model/Task.java
-/home/ingesoft/taller-g3-jenkins-cicd-A00378093/codigo_base/backend/src/main/java/com/icesi/studytrack/repository/TaskRepository.java
-/home/ingesoft/taller-g3-jenkins-cicd-A00378093/codigo_base/backend/src/main/java/com/icesi/studytrack/service/TaskService.java
-/home/ingesoft/taller-g3-jenkins-cicd-A00378093/codigo_base/backend/src/main/java/com/icesi/studytrack/exception/TaskNotFoundException.java
-/home/ingesoft/taller-g3-jenkins-cicd-A00378093/codigo_base/backend/src/main/java/com/icesi/studytrack/StudyTrackApplication.java
-/home/ingesoft/taller-g3-jenkins-cicd-A00378093/codigo_base/backend/src/main/java/com/icesi/studytrack/controller/TaskController.java
+C:\Users\juanp\OneDrive\Escritorio\taller-g3-jenkins-cicd-A00378093\codigo_base\backend\src\main\java\com\icesi\studytrack\model\Task.java
+C:\Users\juanp\OneDrive\Escritorio\taller-g3-jenkins-cicd-A00378093\codigo_base\backend\src\main\java\com\icesi\studytrack\service\TaskService.java
+C:\Users\juanp\OneDrive\Escritorio\taller-g3-jenkins-cicd-A00378093\codigo_base\backend\src\main\java\com\icesi\studytrack\controller\TaskController.java
+C:\Users\juanp\OneDrive\Escritorio\taller-g3-jenkins-cicd-A00378093\codigo_base\backend\src\main\java\com\icesi\studytrack\exception\TaskNotFoundException.java
+C:\Users\juanp\OneDrive\Escritorio\taller-g3-jenkins-cicd-A00378093\codigo_base\backend\src\main\java\com\icesi\studytrack\repository\TaskRepository.java
+C:\Users\juanp\OneDrive\Escritorio\taller-g3-jenkins-cicd-A00378093\codigo_base\backend\src\main\java\com\icesi\studytrack\StudyTrackApplication.java

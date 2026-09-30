@@ -35,27 +35,3 @@ networks:
 
 volumes:
   nexus_data:
-version: "3.9"
-
-services:
-  nexus:
-    image: sonatype/nexus3:3.68.1
-    container_name: nexus
-    networks:
-      - cicd_network
-    ports:
-    volumes:
-    environment:
-    healthcheck:
-      test: 
-      interval: 
-      timeout: 
-      retries: 
-      start_period: 
-
-networks:
-  cicd_network:
-    external: true
-
-volumes:
-  nexus_data:

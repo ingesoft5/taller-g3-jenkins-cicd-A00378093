@@ -1,1 +1,9 @@
 .DS_Store
+# Build outputs
+**/target/
+**/node_modules/
+**/dist/
+**/.flattened-pom.xml
+# Secretos locales: NUNCA se versionan
+**/.env
+ci-settings.xml
